@@ -1,0 +1,16 @@
+# Eclipse Ayar Dosyaları (Sadece senin bilgisayarına özeldir, repoda olmamalı)
+.settings/
+.project
+.classpath
+
+# Derlenmiş Java Sınıfları (GitHub sadece kaynak kodları tutmalıdır)
+*.class
+/build/
+/bin/
+
+# Yerel Kütüphaneler (Maven kullanmadığımız için şimdilik jar dosyalarını engelliyoruz)
+*.jar
+
+# İşletim Sistemi Kalıntıları
+.DS_Store
+Thumbs.db
