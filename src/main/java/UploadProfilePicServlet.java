@@ -37,7 +37,7 @@ public class UploadProfilePicServlet extends HttpServlet {
         String fileUrl = "uploads/" + fileName;
 
         try (Connection con = DBUtil.getConnection()) {
-            String updateQuery = "UPDATE Users SET profile_pic = ? WHERE username = ?";
+            String updateQuery = "UPDATE users SET profile_pic = ? WHERE username = ?";
             PreparedStatement pst = con.prepareStatement(updateQuery);
             pst.setString(1, fileUrl);
             pst.setString(2, username);

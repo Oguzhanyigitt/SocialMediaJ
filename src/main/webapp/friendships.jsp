@@ -28,7 +28,7 @@
         <% 
         String username = (String) session.getAttribute("user");
         Connection con = DBUtil.getConnection();
-        String query = "SELECT u.username, u.profile_pic_url FROM Friends f JOIN Users u ON f.friend_id = u.user_id WHERE f.user_id = (SELECT user_id FROM Users WHERE username = ?)";
+        String query = "SELECT u.username, u.profile_pic_url FROM Friends f JOIN users u ON f.friend_id = u.user_id WHERE f.user_id = (SELECT user_id FROM users WHERE username = ?)";
         PreparedStatement pst = con.prepareStatement(query);
         pst.setString(1, username);
         ResultSet rs = pst.executeQuery();

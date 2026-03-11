@@ -59,7 +59,7 @@
             String currentUsername = (String) request.getAttribute("username");
             if (currentUsername != null) {
                 Connection con = DBUtil.getConnection();
-                String followerCountQuery = "SELECT COUNT(*) FROM Followers WHERE followed_id = (SELECT user_id FROM Users WHERE username = ?)";
+                String followerCountQuery = "SELECT COUNT(*) FROM Followers WHERE followed_id = (SELECT user_id FROM users WHERE username = ?)";
                 PreparedStatement followerCountPst = con.prepareStatement(followerCountQuery);
                 followerCountPst.setString(1, currentUsername);
                 ResultSet followerCountRs = followerCountPst.executeQuery();

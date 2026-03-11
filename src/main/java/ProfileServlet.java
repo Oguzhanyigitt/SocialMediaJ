@@ -17,7 +17,7 @@ public class ProfileServlet extends HttpServlet {
 
         if (username != null && !username.isEmpty()) {
             try (Connection con = DBUtil.getConnection()) {
-                String userQuery = "SELECT user_id, email, profile_pic FROM Users WHERE username = ?";
+                String userQuery = "SELECT user_id,email,profile_pic FROM users WHERE username = ?";
                 PreparedStatement userPst = con.prepareStatement(userQuery);
                 userPst.setString(1, username);
                 ResultSet userRs = userPst.executeQuery();

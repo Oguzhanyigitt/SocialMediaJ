@@ -26,7 +26,7 @@ public class LoginServlet extends HttpServlet {
         }
 
         try (Connection conn = DBUtil.getConnection()) {
-            String sql = "SELECT * FROM Users WHERE username = ?";
+            String sql = "SELECT * FROM users WHERE username = ?";
             try (PreparedStatement stmt = conn.prepareStatement(sql)) {
                 stmt.setString(1, username);
 

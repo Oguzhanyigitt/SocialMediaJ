@@ -19,7 +19,7 @@ public class FollowServlet extends HttpServlet {
 
         if ("follow".equals(action)) {
             try (Connection con = DBUtil.getConnection()) {
-                String followQuery = "INSERT INTO Followers (follower_id, followed_id) VALUES ((SELECT user_id FROM Users WHERE username = ?), ?)";
+                String followQuery = "INSERT INTO Followers (follower_id, followed_id) VALUES ((SELECT user_id FROM users WHERE username = ?), ?)";
                 PreparedStatement pst = con.prepareStatement(followQuery);
                 pst.setString(1, currentUser);
                 pst.setInt(2, followedId);
@@ -29,7 +29,7 @@ public class FollowServlet extends HttpServlet {
             }
         } else if ("unfollow".equals(action)) {
             try (Connection con = DBUtil.getConnection()) {
-                String unfollowQuery = "DELETE FROM Followers WHERE follower_id = (SELECT user_id FROM Users WHERE username = ?) AND followed_id = ?";
+                String unfollowQuery = "DELETE FROM Followers WHERE follower_id = (SELECT user_id FROM users WHERE username = ?) AND followed_id = ?";
                 PreparedStatement pst = con.prepareStatement(unfollowQuery);
                 pst.setString(1, currentUser);
                 pst.setInt(2, followedId);

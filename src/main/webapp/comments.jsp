@@ -39,7 +39,7 @@
 	        <% 
 	        int postId = Integer.parseInt(request.getParameter("postId"));
 	        Connection con = DBUtil.getConnection();
-	        String query = "SELECT c.comment_id, c.content, c.created_at, u.username FROM Comments c JOIN Users u ON c.user_id = u.user_id WHERE c.post_id = ? ORDER BY c.created_at DESC";
+	        String query = "SELECT c.comment_id, c.content, c.created_at, u.username FROM Comments c JOIN users u ON c.user_id = u.user_id WHERE c.post_id = ? ORDER BY c.created_at DESC";
 	        PreparedStatement pst = con.prepareStatement(query);
 	        pst.setInt(1, postId);
 	        ResultSet rs = pst.executeQuery();

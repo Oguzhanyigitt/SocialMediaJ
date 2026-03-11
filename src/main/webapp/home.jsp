@@ -78,7 +78,7 @@
         ResultSet rs = null;
         try {
             con = DBUtil.getConnection();
-            String query = "SELECT p.post_id, p.user_id, p.content, p.media_url, p.created_at, u.username, COUNT(l.like_id) AS like_count FROM Posts p LEFT JOIN Users u ON p.user_id = u.user_id LEFT JOIN Likes l ON p.post_id = l.post_id GROUP BY p.post_id ORDER BY p.created_at DESC";
+            String query = "SELECT p.post_id, p.user_id, p.content, p.media_url, p.created_at, u.username, COUNT(l.like_id) AS like_count FROM Posts p LEFT JOIN users u ON p.user_id = u.user_id LEFT JOIN Likes l ON p.post_id = l.post_id GROUP BY p.post_id ORDER BY p.created_at DESC";
             pst = con.prepareStatement(query);
             rs = pst.executeQuery();
             while (rs.next()) {
@@ -88,7 +88,7 @@
                 String mediaUrl = rs.getString("media_url");
                 int likeCount = rs.getInt("like_count");
 
-                String followCheckQuery = "SELECT COUNT(*) FROM Followers WHERE follower_id = (SELECT user_id FROM Users WHERE username = ?) AND followed_id = ?";
+                String followCheckQuery = "SELECT COUNT(*) FROM Followers WHERE follower_id = (SELECT user_id FROM users WHERE username = ?) AND followed_id = ?";
                 PreparedStatement followCheckPst = con.prepareStatement(followCheckQuery);
                 followCheckPst.setString(1, (String) session.getAttribute("user"));
                 followCheckPst.setInt(2, rs.getInt("user_id"));
@@ -121,7 +121,7 @@
                 <input type="hidden" name="post_id" value="<%= postId %>">
                 <button type="submit" class="btn btn-link like-button">
                     <% 
-                        String checkUserLikeQuery = "SELECT COUNT(*) FROM Likes WHERE user_id = (SELECT user_id FROM Users WHERE username = ?) AND post_id = ?";
+                        String checkUserLikeQuery = "SELECT COUNT(*) FROM Likes WHERE user_id = (SELECT user_id FROM users WHERE username = ?) AND post_id = ?";
                         PreparedStatement checkUserLikePst = con.prepareStatement(checkUserLikeQuery);
                         checkUserLikePst.setString(1, username);
                         checkUserLikePst.setInt(2, postId);
@@ -155,7 +155,7 @@
             </form>
 
             <%
-                String commentQuery = "SELECT c.content, u.username FROM Comments c JOIN Users u ON c.user_id = u.user_id WHERE c.post_id = ?";
+                String commentQuery = "SELECT c.content, u.username FROM Comments c JOIN users u ON c.user_id = u.user_id WHERE c.post_id = ?";
                 PreparedStatement commentPst = con.prepareStatement(commentQuery);
                 commentPst.setInt(1, postId);
                 ResultSet commentRs = commentPst.executeQuery();

@@ -25,7 +25,7 @@ public class CommentServlet extends HttpServlet {
         String commentContent = request.getParameter("comment");
 
         try (Connection con = DBUtil.getConnection()) {
-            String getUserIdQuery = "SELECT user_id FROM Users WHERE username = ?";
+            String getUserIdQuery = "SELECT user_id FROM users WHERE username = ?";
             PreparedStatement getUserIdPst = con.prepareStatement(getUserIdQuery);
             getUserIdPst.setString(1, username);
             ResultSet rs = getUserIdPst.executeQuery();

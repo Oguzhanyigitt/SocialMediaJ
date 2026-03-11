@@ -17,7 +17,7 @@ public class RegisterServlet extends HttpServlet {
         String email = request.getParameter("email");
 
         try (Connection con = DBUtil.getConnection()) {
-            String query = "INSERT INTO Users (username, password, email) VALUES (?, ?, ?)";
+            String query = "INSERT INTO users (username, password, email) VALUES (?, ?, ?)";
             PreparedStatement pst = con.prepareStatement(query);
             pst.setString(1, username);
             pst.setString(2, password);
