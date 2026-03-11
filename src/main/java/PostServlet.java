@@ -60,7 +60,7 @@ public class PostServlet extends HttpServlet {
         // Veritabanına sadece metinleri ve Cloudinary'den gelen URL'yi kaydediyoruz
         try (Connection con = DBUtil.getConnection()) {
             // DİKKAT: Linux büyük/küçük harf duyarlılığı için tablo adlarını küçük yazdım (posts ve users)
-            String query = "INSERT INTO posts (user_id, content, media_url, created_at) VALUES ((SELECT user_id FROM users WHERE username = ?), ?, ?, NOW())";
+            String query = "INSERT INTO Posts (user_id, content, media_url, created_at) VALUES ((SELECT user_id FROM users WHERE username = ?), ?, ?, NOW())";
             PreparedStatement pst = con.prepareStatement(query);
             pst.setString(1, username);
             pst.setString(2, content);
