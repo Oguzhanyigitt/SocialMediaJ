@@ -21,6 +21,7 @@ public class HomeServlet extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         HttpSession session = request.getSession(false);
+        // Güvenlik ve Mantık Kontrolü: Oturum açılmış mı?
         if (session == null || session.getAttribute("userId") == null) {
             response.sendRedirect("index.jsp");
             return;
@@ -30,7 +31,7 @@ public class HomeServlet extends HttpServlet {
         List<Map<String, Object>> posts = new ArrayList<>();
 
         try (Connection con = DBUtil.getConnection()) {
-            // Ana Sorgu: Gönderiler, Yazar Bilgisi ve Toplam Beğeni Sayısı
+            // Ana Sorgu: Gönderiler, Yazar Bilgisi, Toplam Beğeni Sayısı ve Bizim Beğenme Durumumuz
             String postQuery = "SELECT p.post_id, p.content, p.media_url, p.created_at, u.user_id, u.username, u.profile_pic, " +
                                "(SELECT COUNT(*) FROM Likes l WHERE l.post_id = p.post_id) AS like_count, " +
                                "(SELECT COUNT(*) FROM Likes l2 WHERE l2.post_id = p.post_id AND l2.user_id = ?) AS is_liked " +
@@ -53,14 +54,16 @@ public class HomeServlet extends HttpServlet {
                         post.put("likeCount", rs.getInt("like_count"));
                         post.put("isLiked", rs.getInt("is_liked") > 0);
 
-                        // Yorumları Çekme (Hala bir döngü içindeyiz ama en azından DB bağlantısı JSP'den Java'ya taşındı ve tek connection üzerinden yürüyor)
+                        // Yorumları Çekme (Silme işlemleri için comment_id ve user_id de çekiliyor)
                         List<Map<String, String>> comments = new ArrayList<>();
-                        String commentQuery = "SELECT c.content, u.username FROM Comments c JOIN users u ON c.user_id = u.user_id WHERE c.post_id = ? ORDER BY c.created_at ASC";
+                        String commentQuery = "SELECT c.comment_id, c.user_id, c.content, u.username FROM Comments c JOIN users u ON c.user_id = u.user_id WHERE c.post_id = ? ORDER BY c.created_at ASC";
                         try (PreparedStatement cPst = con.prepareStatement(commentQuery)) {
                             cPst.setInt(1, postId);
                             try (ResultSet cRs = cPst.executeQuery()) {
                                 while (cRs.next()) {
                                     Map<String, String> comment = new HashMap<>();
+                                    comment.put("commentId", String.valueOf(cRs.getInt("comment_id")));
+                                    comment.put("userId", String.valueOf(cRs.getInt("user_id")));
                                     comment.put("username", cRs.getString("username"));
                                     comment.put("content", cRs.getString("content"));
                                     comments.add(comment);
@@ -73,12 +76,13 @@ public class HomeServlet extends HttpServlet {
                 }
             }
             
-            // Veriyi hazırladık, şimdi vitrine (JSP) gönderiyoruz
+            // Hazırlanan paketlenmiş veriyi vitrine (JSP) gönder
             request.setAttribute("posts", posts);
             request.getRequestDispatcher("home.jsp").forward(request, response);
 
         } catch (SQLException e) {
             e.printStackTrace();
+            // Veritabanı hatası durumunda döngüye girmemesi için index'e atıyoruz
             response.sendRedirect("index.jsp?error=db");
         }
     }

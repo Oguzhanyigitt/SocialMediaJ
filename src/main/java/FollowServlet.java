@@ -69,7 +69,8 @@ public class FollowServlet extends HttpServlet {
             }
 
             // İşlem bittiğinde aynı profile geri dönüyoruz
-            response.sendRedirect("profile?username=" + targetUsername);
+            String encodedTarget = java.net.URLEncoder.encode(targetUsername, "UTF-8");
+            response.sendRedirect("profile?username=" + encodedTarget);
 
         } catch (SQLException e) {
             e.printStackTrace();
