@@ -19,45 +19,40 @@ public class RegisterServlet extends HttpServlet {
         String password = request.getParameter("password");
         String email = request.getParameter("email");
 
-        // Mantık Kontrolü 1: Gelen veriler boş olamaz
         if (username == null || username.trim().isEmpty() || 
             password == null || password.trim().isEmpty() || 
             email == null || email.trim().isEmpty()) {
-            response.sendRedirect("index.jsp?error=registerError");
+            response.sendRedirect("index.jsp?error=register_failed");
             return;
         }
 
-        // Güvenlik: Şifreyi BCrypt ile tuzlayarak (salt) hashliyoruz
         String hashedPassword = BCrypt.hashpw(password, BCrypt.gensalt(12));
 
         try (Connection con = DBUtil.getConnection()) {
-            // Mantık Kontrolü 2: Bu kullanıcı adı veya e-posta zaten kullanımda mı?
             String checkQuery = "SELECT COUNT(*) FROM users WHERE username = ? OR email = ?";
             try (PreparedStatement checkPst = con.prepareStatement(checkQuery)) {
                 checkPst.setString(1, username);
                 checkPst.setString(2, email);
                 try (ResultSet rs = checkPst.executeQuery()) {
                     if (rs.next() && rs.getInt(1) > 0) {
-                        // Kullanıcı zaten var, farklı bir hata mesajıyla döndürebiliriz
-                        response.sendRedirect("index.jsp?error=registerError");
+                        response.sendRedirect("index.jsp?error=register_failed");
                         return;
                     }
                 }
             }
 
-            // Güvenli Kayıt İşlemi
             String insertQuery = "INSERT INTO users (username, password, email) VALUES (?, ?, ?)";
             try (PreparedStatement pst = con.prepareStatement(insertQuery)) {
                 pst.setString(1, username);
-                pst.setString(2, hashedPassword); // Orijinal şifre yerine hashlenmiş versiyon gidiyor
+                pst.setString(2, hashedPassword);
                 pst.setString(3, email);
                 pst.executeUpdate();
             }
-            response.sendRedirect("index.jsp?registration=success");
+            response.sendRedirect("index.jsp?success=registered");
 
         } catch (SQLException e) {
             e.printStackTrace();
-            response.sendRedirect("index.jsp?error=registerError");
+            response.sendRedirect("index.jsp?error=register_failed");
         }
     }
 }

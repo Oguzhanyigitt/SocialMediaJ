@@ -9,28 +9,40 @@
   <packaging>war</packaging>
 
   <dependencies>
-	   <dependency>
-		   <groupId>org.mindrot</groupId>
-		   <artifactId>jbcrypt</artifactId>
-		   <version>0.4</version>
-	  </dependency>  	  
-  	  <dependency>
+      <dependency>
+          <groupId>org.mindrot</groupId>
+          <artifactId>jbcrypt</artifactId>
+          <version>0.4</version>
+      </dependency>  	  
+      
+      <dependency>
           <groupId>com.cloudinary</groupId>
           <artifactId>cloudinary-http44</artifactId>
           <version>1.36.0</version>
       </dependency>
+      
       <dependency>
           <groupId>jakarta.servlet</groupId>
           <artifactId>jakarta.servlet-api</artifactId>
           <version>5.0.0</version>
           <scope>provided</scope>
       </dependency>
-      
       <dependency>
           <groupId>jakarta.servlet.jsp</groupId>
           <artifactId>jakarta.servlet.jsp-api</artifactId>
           <version>3.1.1</version>
           <scope>provided</scope>
+      </dependency>
+
+      <dependency>
+          <groupId>jakarta.servlet.jsp.jstl</groupId>
+          <artifactId>jakarta.servlet.jsp.jstl-api</artifactId>
+          <version>3.0.0</version>
+      </dependency>
+      <dependency>
+          <groupId>org.glassfish.web</groupId>
+          <artifactId>jakarta.servlet.jsp.jstl</artifactId>
+          <version>3.0.1</version>
       </dependency>
 
       <dependency>
@@ -50,7 +62,6 @@
           <release>17</release>
         </configuration>
       </plugin>
-      
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-war-plugin</artifactId>

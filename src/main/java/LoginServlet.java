@@ -20,7 +20,7 @@ public class LoginServlet extends HttpServlet {
         String password = request.getParameter("password");
 
         if (username == null || username.trim().isEmpty() || password == null || password.trim().isEmpty()) {
-            response.sendRedirect("index.jsp?error=loginError");
+            response.sendRedirect("index.jsp?error=login_failed");
             return;
         }
 
@@ -34,23 +34,22 @@ public class LoginServlet extends HttpServlet {
                         String storedHash = rs.getString("password");
                         int userId = rs.getInt("user_id");
                         
-                        // Güvenlik: Kullanıcının girdiği düz şifre ile veritabanındaki hash eşleşiyor mu?
                         if (BCrypt.checkpw(password, storedHash)) {
                             HttpSession session = request.getSession();
                             session.setAttribute("user", username);
-                            session.setAttribute("userId", userId); // Performans iyileştirmesi: ID'yi session'a aldık
+                            session.setAttribute("userId", userId);
                             response.sendRedirect("home");
                         } else {
-                            response.sendRedirect("index.jsp?error=loginError");
+                            response.sendRedirect("index.jsp?error=login_failed");
                         }
                     } else {
-                        response.sendRedirect("index.jsp?error=loginError");
+                        response.sendRedirect("index.jsp?error=login_failed");
                     }
                 }
             }
         } catch (SQLException e) {
             e.printStackTrace();
-            response.sendRedirect("index.jsp?error=loginError");
+            response.sendRedirect("index.jsp?error=login_failed");
         }
     }
 }

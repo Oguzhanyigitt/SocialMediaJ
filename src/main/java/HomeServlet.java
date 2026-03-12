@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @WebServlet("/home")
 public class HomeServlet extends HttpServlet {
@@ -21,17 +22,17 @@ public class HomeServlet extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         HttpSession session = request.getSession(false);
-        // Güvenlik ve Mantık Kontrolü: Oturum açılmış mı?
         if (session == null || session.getAttribute("userId") == null) {
-            response.sendRedirect("index.jsp");
+            response.sendRedirect(request.getContextPath() + "/index.jsp");
             return;
         }
 
         int currentUserId = (int) session.getAttribute("userId");
         List<Map<String, Object>> posts = new ArrayList<>();
+        List<Integer> postIds = new ArrayList<>(); // Yorumları tek seferde çekmek için ID'leri biriktiriyoruz
 
         try (Connection con = DBUtil.getConnection()) {
-            // Ana Sorgu: Gönderiler, Yazar Bilgisi, Toplam Beğeni Sayısı ve Bizim Beğenme Durumumuz
+            // SORGÚ 1: Sadece Gönderileri Çek
             String postQuery = "SELECT p.post_id, p.content, p.media_url, p.created_at, u.user_id, u.username, u.profile_pic, " +
                                "(SELECT COUNT(*) FROM Likes l WHERE l.post_id = p.post_id) AS like_count, " +
                                "(SELECT COUNT(*) FROM Likes l2 WHERE l2.post_id = p.post_id AND l2.user_id = ?) AS is_liked " +
@@ -39,7 +40,6 @@ public class HomeServlet extends HttpServlet {
 
             try (PreparedStatement pst = con.prepareStatement(postQuery)) {
                 pst.setInt(1, currentUserId);
-                
                 try (ResultSet rs = pst.executeQuery()) {
                     while (rs.next()) {
                         Map<String, Object> post = new HashMap<>();
@@ -50,40 +50,54 @@ public class HomeServlet extends HttpServlet {
                         post.put("createdAt", rs.getTimestamp("created_at"));
                         post.put("authorId", rs.getInt("user_id"));
                         post.put("authorName", rs.getString("username"));
-                        post.put("authorPic", rs.getString("profile_pic"));
+                        post.put("authorPic", rs.getString("profile_pic") != null ? rs.getString("profile_pic") : "https://via.placeholder.com/40");
                         post.put("likeCount", rs.getInt("like_count"));
                         post.put("isLiked", rs.getInt("is_liked") > 0);
-
-                        // Yorumları Çekme (Silme işlemleri için comment_id ve user_id de çekiliyor)
-                        List<Map<String, String>> comments = new ArrayList<>();
-                        String commentQuery = "SELECT c.comment_id, c.user_id, c.content, u.username FROM Comments c JOIN users u ON c.user_id = u.user_id WHERE c.post_id = ? ORDER BY c.created_at ASC";
-                        try (PreparedStatement cPst = con.prepareStatement(commentQuery)) {
-                            cPst.setInt(1, postId);
-                            try (ResultSet cRs = cPst.executeQuery()) {
-                                while (cRs.next()) {
-                                    Map<String, String> comment = new HashMap<>();
-                                    comment.put("commentId", String.valueOf(cRs.getInt("comment_id")));
-                                    comment.put("userId", String.valueOf(cRs.getInt("user_id")));
-                                    comment.put("username", cRs.getString("username"));
-                                    comment.put("content", cRs.getString("content"));
-                                    comments.add(comment);
-                                }
-                            }
-                        }
-                        post.put("comments", comments);
+                        post.put("comments", new ArrayList<Map<String, String>>()); // Başlangıçta boş yorum listesi
+                        
                         posts.add(post);
+                        postIds.add(postId);
                     }
                 }
             }
             
-            // Hazırlanan paketlenmiş veriyi vitrine (JSP) gönder
+            // SORGÚ 2: Tüm Yorumları TEK SEFERDE Çek (N+1 Problemini Çözen Kısım)
+            if (!postIds.isEmpty()) {
+                // postIds listesini virgülle ayrılmış bir string'e çeviriyoruz (örnek: "1,2,5,10")
+                String inClause = postIds.stream().map(String::valueOf).collect(Collectors.joining(","));
+                String commentQuery = "SELECT c.comment_id, c.post_id, c.user_id, c.content, u.username " +
+                                      "FROM Comments c JOIN users u ON c.user_id = u.user_id " +
+                                      "WHERE c.post_id IN (" + inClause + ") ORDER BY c.created_at ASC";
+                
+                try (PreparedStatement cPst = con.prepareStatement(commentQuery);
+                     ResultSet cRs = cPst.executeQuery()) {
+                    
+                    // Gelen yorumları ait oldukları post'un listesine yerleştir
+                    while (cRs.next()) {
+                        int pId = cRs.getInt("post_id");
+                        Map<String, String> comment = new HashMap<>();
+                        comment.put("commentId", String.valueOf(cRs.getInt("comment_id")));
+                        comment.put("userId", String.valueOf(cRs.getInt("user_id")));
+                        comment.put("username", cRs.getString("username"));
+                        comment.put("content", cRs.getString("content"));
+
+                        // Hangi post'a aitse onu bulup listesine ekle
+                        for (Map<String, Object> p : posts) {
+                            if ((Integer) p.get("postId") == pId) {
+                                ((List<Map<String, String>>) p.get("comments")).add(comment);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            
             request.setAttribute("posts", posts);
-            request.getRequestDispatcher("home.jsp").forward(request, response);
+            request.getRequestDispatcher("/home.jsp").forward(request, response);
 
         } catch (SQLException e) {
             e.printStackTrace();
-            // Veritabanı hatası durumunda döngüye girmemesi için index'e atıyoruz
-            response.sendRedirect("index.jsp?error=db");
+            response.sendRedirect(request.getContextPath() + "/index.jsp?error=db_error");
         }
     }
 }

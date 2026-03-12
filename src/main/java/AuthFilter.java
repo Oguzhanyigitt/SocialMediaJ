@@ -5,8 +5,13 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import java.io.IOException;
 
-// Bu filtre, uygulamanın kalbini oluşturan tüm adresleri koruma altına alır
-@WebFilter(urlPatterns = {"/home", "/profile", "/post", "/like", "/comment", "/deletePost", "/deleteComment", "/UploadProfilePic"})
+// Tüm kritik endpoint'ler koruma altında. JSP dosyalarına doğrudan erişimi engellemek için onları da ekledik.
+@WebFilter(urlPatterns = {
+    "/home", "/profile", "/post", "/like", "/comment", 
+    "/deletePost", "/deleteComment", "/UploadProfilePic", 
+    "/follow", "/searchUsers", "/friendships", 
+    "/home.jsp", "/profile.jsp", "/post.jsp", "/friendships.jsp"
+})
 public class AuthFilter implements Filter {
 
     @Override
@@ -14,19 +19,18 @@ public class AuthFilter implements Filter {
         HttpServletRequest request = (HttpServletRequest) req;
         HttpServletResponse response = (HttpServletResponse) res;
 
-        // BÜYÜK ÇÖZÜM: Tarayıcıya sayfayı KESİNLİKLE önbelleğe (cache) almamasını söylüyoruz.
-        // Böylece "Geri" tuşuna basıldığında tarayıcı hafızadan yükleyemez, sunucuya sormak zorunda kalır.
-        response.setHeader("Cache-Control", "no-cache, no-store, must-revalidate"); // HTTP 1.1
-        response.setHeader("Pragma", "no-cache"); // HTTP 1.0
-        response.setDateHeader("Expires", 0); // Proxyler için
+        // Önbellek Kapatma: Tarayıcının "Geri" tuşuyla yetkisiz sayfa yüklemesini engeller.
+        response.setHeader("Cache-Control", "no-cache, no-store, must-revalidate"); 
+        response.setHeader("Pragma", "no-cache"); 
+        response.setDateHeader("Expires", 0); 
 
         HttpSession session = request.getSession(false);
         boolean isLoggedIn = (session != null && session.getAttribute("userId") != null);
 
         if (isLoggedIn) {
-            chain.doFilter(request, response); // Giriş yapılmış, yola devam et
+            chain.doFilter(request, response);
         } else {
-            response.sendRedirect("index.jsp"); // Oturum yoksa veya geri tuşuyla gelinmişse acımasızca index'e at
+            response.sendRedirect(request.getContextPath() + "/index.jsp");
         }
     }
 }

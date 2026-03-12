@@ -1,3 +1,4 @@
+
 import com.socialmedia.util.DBUtil;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
@@ -6,6 +7,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import java.io.IOException;
+import java.net.URLEncoder;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -17,24 +19,26 @@ public class LikeServlet extends HttpServlet {
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         HttpSession session = request.getSession(false);
-        // Güvenlik ve Mantık Kontrolü: Oturum yoksa veya userId session'da değilse
         if (session == null || session.getAttribute("userId") == null) {
-            response.sendRedirect("login.jsp");
+            response.sendRedirect("index.jsp");
             return;
         }
 
         int userId = (int) session.getAttribute("userId");
         String postIdStr = request.getParameter("post_id");
+        
+        // Yönlendirme parametrelerini yakala
+        String from = request.getParameter("from");
+        String targetUsername = request.getParameter("targetUsername");
 
         if (postIdStr == null || postIdStr.trim().isEmpty()) {
-            response.sendRedirect("home?error=invalid_post");
+            redirectBack(response, from, targetUsername, "invalid_post");
             return;
         }
 
         int postId = Integer.parseInt(postIdStr);
 
         try (Connection con = DBUtil.getConnection()) {
-            // Adım 1: Kullanıcı bu postu daha önce beğenmiş mi?
             String checkLikeQuery = "SELECT COUNT(*) FROM Likes WHERE user_id = ? AND post_id = ?";
             boolean isLiked = false;
             
@@ -48,7 +52,6 @@ public class LikeServlet extends HttpServlet {
                 }
             }
 
-            // Adım 2: Duruma göre Ekle veya Sil (Toggle Mantığı)
             if (isLiked) {
                 String deleteLikeQuery = "DELETE FROM Likes WHERE user_id = ? AND post_id = ?";
                 try (PreparedStatement deletePst = con.prepareStatement(deleteLikeQuery)) {
@@ -65,12 +68,22 @@ public class LikeServlet extends HttpServlet {
                 }
             }
 
-            // İşlem bittiğinde, JSP dosyasına değil, veri toplayıcı Servlet'e yönlendiriyoruz
-            response.sendRedirect("home");
+            redirectBack(response, from, targetUsername, null);
 
         } catch (SQLException e) {
             e.printStackTrace();
-            response.sendRedirect("home?error=db_error");
+            redirectBack(response, from, targetUsername, "db_error");
+        }
+    }
+    
+    // Akıllı yönlendirme metodu
+    private void redirectBack(HttpServletResponse response, String from, String targetUsername, String error) throws IOException {
+        String errorParam = (error != null) ? "&error=" + error : "";
+        if ("profile".equals(from) && targetUsername != null && !targetUsername.trim().isEmpty()) {
+            String encodedTarget = URLEncoder.encode(targetUsername, "UTF-8");
+            response.sendRedirect("profile?username=" + encodedTarget + errorParam);
+        } else {
+            response.sendRedirect("home" + (error != null ? "?error=" + error : ""));
         }
     }
 }

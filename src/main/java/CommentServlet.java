@@ -6,6 +6,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import java.io.IOException;
+import java.net.URLEncoder;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
@@ -17,37 +18,47 @@ public class CommentServlet extends HttpServlet {
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         HttpSession session = request.getSession(false);
         if (session == null || session.getAttribute("userId") == null) {
-            response.sendRedirect("login.jsp");
+            response.sendRedirect("index.jsp");
             return;
         }
 
         int userId = (int) session.getAttribute("userId");
         String postIdStr = request.getParameter("postId");
         String content = request.getParameter("content");
+        
+        // Nereden geldiğimizi yakalıyoruz
+        String from = request.getParameter("from");
+        String targetUsername = request.getParameter("targetUsername");
 
-        // Mantık Kontrolü: Veriler boş mu?
         if (content == null || content.trim().isEmpty() || postIdStr == null || postIdStr.trim().isEmpty()) {
-            response.sendRedirect("home?error=empty_comment");
+            redirectBack(response, from, targetUsername, "empty_comment");
             return;
         }
 
         try (Connection con = DBUtil.getConnection()) {
-            // Sorguda 3 parametre var: user_id (1), post_id (2), content (3)
             String insertCommentQuery = "INSERT INTO Comments (user_id, post_id, content) VALUES (?, ?, ?)";
-            
             try (PreparedStatement pst = con.prepareStatement(insertCommentQuery)) {
                 pst.setInt(1, userId);
                 pst.setInt(2, Integer.parseInt(postIdStr));
-                pst.setString(3, content.trim()); // HATA BURADAYDI: 3. parametre eksik veya yanlış set ediliyordu
-                
+                pst.setString(3, content.trim());
                 pst.executeUpdate();
             }
-            
-            response.sendRedirect("home");
+            redirectBack(response, from, targetUsername, null);
 
         } catch (SQLException | NumberFormatException e) {
             e.printStackTrace();
-            response.sendRedirect("home?error=db_error");
+            redirectBack(response, from, targetUsername, "db_error");
+        }
+    }
+
+    // Yönlendirmeyi (Redirect) güvenli ve akıllıca yöneten yardımcı metod
+    private void redirectBack(HttpServletResponse response, String from, String targetUsername, String error) throws IOException {
+        String errorParam = (error != null) ? "&error=" + error : "";
+        if ("profile".equals(from) && targetUsername != null && !targetUsername.trim().isEmpty()) {
+            String encodedTarget = URLEncoder.encode(targetUsername, "UTF-8");
+            response.sendRedirect("profile?username=" + encodedTarget + errorParam);
+        } else {
+            response.sendRedirect("home" + (error != null ? "?error=" + error : ""));
         }
     }
 }
