@@ -1,14 +1,11 @@
 import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
+import com.socialmedia.util.CloudinaryUtil;
 import com.socialmedia.util.DBUtil;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.MultipartConfig;
 import jakarta.servlet.annotation.WebServlet;
-import jakarta.servlet.http.HttpServlet;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-import jakarta.servlet.http.Part;
-
+import jakarta.servlet.http.*;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -17,67 +14,58 @@ import java.util.Map;
 
 @WebServlet("/UploadProfilePic")
 @MultipartConfig(
-    maxFileSize = 1024 * 1024 * 5,      // Profil fotoları için 5 MB yeterlidir
-    maxRequestSize = 1024 * 1024 * 10   // Maksimum istek boyutu: 10 MB
+    fileSizeThreshold = 1024 * 1024 * 1,  // 1MB bellekte tutulacak eşik
+    maxFileSize = 1024 * 1024 * 10,       // 10MB maksimum dosya boyutu (Profil için gayet yeterli)
+    maxRequestSize = 1024 * 1024 * 15     // Toplam istek boyutu
 )
 public class UploadProfilePicServlet extends HttpServlet {
 
-    // PostServlet'e yazdığın kendi Cloudinary API bilgilerinle BURAYI DEĞİŞTİR:
-    private static final Cloudinary cloudinary = new Cloudinary(ObjectUtils.asMap(
-    		"cloud_name", "doa50jbp4",
-            "api_key", "332471892235188",
-            "api_secret", "_dNllJagLHuw6kFWTy_FWiuymUw"
-    ));
-
+    @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        // Oturumdaki kullanıcıyı alıyoruz
-        String username = (String) request.getSession().getAttribute("user");
-        if (username == null) {
+        HttpSession session = request.getSession(false);
+        // Mantık Kontrolü: Oturum açılmış mı?
+        if (session == null || session.getAttribute("userId") == null) {
             response.sendRedirect("login.jsp");
             return;
         }
 
-        // JSP formundaki name="profilePic" değerini yakalıyoruz
+        int userId = (int) session.getAttribute("userId");
+        String username = (String) session.getAttribute("user");
         Part filePart = request.getPart("profilePic");
-        String profilePicUrl = null;
 
-        if (filePart != null && filePart.getSize() > 0) {
-            try {
-                // Dosyayı hafızaya alıp Cloudinary'ye yüklüyoruz
-                byte[] fileBytes = filePart.getInputStream().readAllBytes();
-                Map uploadResult = cloudinary.uploader().upload(fileBytes, ObjectUtils.emptyMap());
-                
-                // Cloudinary'nin oluşturduğu kalıcı URL'yi çekiyoruz
-                profilePicUrl = (String) uploadResult.get("secure_url");
-            } catch (Exception e) {
-                e.printStackTrace();
-                response.sendRedirect("error.jsp");
-                return;
-            }
-        } else {
-            // Kullanıcı dosya seçmeden butona basarsa geri gönder
-            response.sendRedirect("profile?username=" + username);
+        // Güvenlik: Boş dosya yüklenmesini engelle
+        if (filePart == null || filePart.getSize() == 0) {
+            response.sendRedirect("profile?username=" + username + "&error=empty_file");
             return;
         }
 
-        // Veritabanındaki 'profile_pic' sütununu UPDATE komutuyla güncelliyoruz
+        String profilePicUrl = null;
+        try {
+            // Merkezi Cloudinary yapımızı çağırıyoruz (API anahtarlarımız artık güvende)
+            Cloudinary cloudinary = CloudinaryUtil.getInstance();
+            Map uploadResult = cloudinary.uploader().upload(filePart.getInputStream().readAllBytes(), ObjectUtils.emptyMap());
+            profilePicUrl = (String) uploadResult.get("secure_url");
+        } catch (Exception e) {
+            e.printStackTrace();
+            response.sendRedirect("profile?username=" + username + "&error=upload_failed");
+            return;
+        }
+
         try (Connection con = DBUtil.getConnection()) {
-            // Linux büyük/küçük harf duyarlılığı için tablo adını 'users' olarak yazdık
-            String query = "UPDATE users SET profile_pic = ? WHERE username = ?";
-            PreparedStatement pst = con.prepareStatement(query);
-            pst.setString(1, profilePicUrl);
-            pst.setString(2, username);
-            
-            int rowsAffected = pst.executeUpdate();
-            if (rowsAffected > 0) {
-                // Yükleme başarılıysa kullanıcının kendi profiline yönlendir
-                response.sendRedirect("profile?username=" + username);
-            } else {
-                response.sendRedirect("error.jsp");
+            // Performans: Artık "username" yerine indeksli olan "user_id" üzerinden güncelleme yapıyoruz
+            String updateQuery = "UPDATE users SET profile_pic = ? WHERE user_id = ?";
+            try (PreparedStatement pst = con.prepareStatement(updateQuery)) {
+                pst.setString(1, profilePicUrl);
+                pst.setInt(2, userId);
+                pst.executeUpdate();
             }
+            
+            // Başarılı olduğunda, HTML/JSP dosyasına değil, kendi profilimizi toplayan Servlet'e dönüyoruz
+            response.sendRedirect("profile?username=" + username);
+
         } catch (SQLException e) {
             e.printStackTrace();
-            response.sendRedirect("error.jsp");
+            response.sendRedirect("profile?username=" + username + "&error=db_error");
         }
     }
 }

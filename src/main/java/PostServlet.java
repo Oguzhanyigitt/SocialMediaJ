@@ -1,14 +1,11 @@
 import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
+import com.socialmedia.util.CloudinaryUtil;
 import com.socialmedia.util.DBUtil;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.MultipartConfig;
 import jakarta.servlet.annotation.WebServlet;
-import jakarta.servlet.http.HttpServlet;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-import jakarta.servlet.http.Part;
-
+import jakarta.servlet.http.*;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -17,64 +14,64 @@ import java.util.Map;
 
 @WebServlet("/post")
 @MultipartConfig(
-    maxFileSize = 1024 * 1024 * 10,      // Maksimum dosya boyutu: 10 MB
-    maxRequestSize = 1024 * 1024 * 15    // Maksimum istek boyutu: 15 MB
+    fileSizeThreshold = 1024 * 1024 * 2,  // 2MB (Bellekte tutulacak miktar)
+    maxFileSize = 1024 * 1024 * 50,       // 50MB (Maksimum dosya boyutu)
+    maxRequestSize = 1024 * 1024 * 55     // 55MB (Tüm isteğin maksimum boyutu)
 )
 public class PostServlet extends HttpServlet {
-
-    // Kendi Cloudinary API bilgilerinle BURAYI DEĞİŞTİR:
-    private static final Cloudinary cloudinary = new Cloudinary(ObjectUtils.asMap(
-        "cloud_name", "doa50jbp4",
-        "api_key", "332471892235188",
-        "api_secret", "_dNllJagLHuw6kFWTy_FWiuymUw"
-    ));
-
+    
+    @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        String username = (String) request.getSession().getAttribute("user");
-        if (username == null) {
+        HttpSession session = request.getSession(false);
+        // Mantık Kontrolü 1: Oturum yoksa veya userId session'da değilse işlem yapma
+        if (session == null || session.getAttribute("userId") == null) {
             response.sendRedirect("login.jsp");
             return;
         }
 
+        int userId = (int) session.getAttribute("userId");
         String content = request.getParameter("content");
-        String mediaUrl = null;
+        Part mediaPart = request.getPart("media");
+        
+        // Mantık Kontrolü 2: İçerik boş mu? Sadece boşluk karakteri (space) basıp geçmesini engelliyoruz.
+        if (content == null || content.trim().isEmpty()) {
+            response.sendRedirect("home?error=empty_content");
+            return;
+        }
 
-        Part filePart = request.getPart("media");
-        // Eğer kullanıcı bir dosya seçtiyse buluta gönder
-        if (filePart != null && filePart.getSize() > 0) {
+        // XSS Koruması (Basic Level): HTML etiketlerini zararsız metne çeviriyoruz.
+        // Böylece tarayıcı bunları kod olarak değil, düz yazı olarak okur.
+        content = content.replace("<", "&lt;").replace(">", "&gt;");
+
+        String mediaUrl = null;
+        // Dosya yüklenmiş mi kontrolü
+        if (mediaPart != null && mediaPart.getSize() > 0) {
             try {
-                // MANTIK BOŞLUĞU KAPATILDI: Dosyayı Render diskine yazmak yerine,
-                // InputStream ile RAM'e alıp doğrudan Cloudinary API'sine fırlatıyoruz.
-                byte[] fileBytes = filePart.getInputStream().readAllBytes();
-                Map uploadResult = cloudinary.uploader().upload(fileBytes, ObjectUtils.emptyMap());
-                
-                // Cloudinary'nin bize oluşturduğu kalıcı ve açık "https://" linkini alıyoruz
+                // Güvenlik adımında yazdığımız yeni merkezi yapıdan Cloudinary'yi çağırıyoruz
+                Cloudinary cloudinary = CloudinaryUtil.getInstance();
+                Map uploadResult = cloudinary.uploader().upload(mediaPart.getInputStream().readAllBytes(), ObjectUtils.emptyMap());
                 mediaUrl = (String) uploadResult.get("secure_url");
             } catch (Exception e) {
                 e.printStackTrace();
-                response.sendRedirect("home.jsp?error=upload_failed");
+                response.sendRedirect("home?error=upload_failed");
                 return;
             }
         }
 
-        // Veritabanına sadece metinleri ve Cloudinary'den gelen URL'yi kaydediyoruz
         try (Connection con = DBUtil.getConnection()) {
-            // DİKKAT: Linux büyük/küçük harf duyarlılığı için tablo adlarını küçük yazdım (posts ve users)
-            String query = "INSERT INTO Posts (user_id, content, media_url, created_at) VALUES ((SELECT user_id FROM users WHERE username = ?), ?, ?, NOW())";
-            PreparedStatement pst = con.prepareStatement(query);
-            pst.setString(1, username);
-            pst.setString(2, content);
-            pst.setString(3, mediaUrl);
-            
-            int rowsAffected = pst.executeUpdate();
-            if (rowsAffected > 0) {
-                response.sendRedirect("home.jsp?post=success");
-            } else {
-                response.sendRedirect("home.jsp?error=true");
+            // Performans: Artık "SELECT user_id FROM users WHERE username = ?" alt sorgusuna ihtiyacımız yok.
+            // ID'yi zaten login olurken bulduk ve session'a koyduk.
+            String query = "INSERT INTO Posts (user_id, content, media_url, created_at) VALUES (?, ?, ?, NOW())";
+            try (PreparedStatement pst = con.prepareStatement(query)) {
+                pst.setInt(1, userId);
+                pst.setString(2, content);
+                pst.setString(3, mediaUrl);
+                pst.executeUpdate();
             }
+            response.sendRedirect("home?post=success");
         } catch (SQLException e) {
             e.printStackTrace();
-            response.sendRedirect("home.jsp?error=true");
+            response.sendRedirect("home?error=db_error");
         }
     }
 }
