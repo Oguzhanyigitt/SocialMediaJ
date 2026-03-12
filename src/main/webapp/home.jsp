@@ -140,11 +140,15 @@
                 </div>
 
                 <div id="comments-<%= post.get("postId") %>" class="collapse comment-section">
-                    <form action="comment" method="post" class="mb-3 d-flex">
-                        <input type="hidden" name="postId" value="<%= post.get("postId") %>">
-                        <input type="text" name="content" class="form-control form-control-sm mr-2" placeholder="Bir yorum yaz..." required>
-                        <button type="submit" class="btn btn-sm btn-primary">Gönder</button>
-                    </form>
+                    <form action="comment" method="post">
+    					<input type="hidden" name="postId" value="<%= post.get("postId") %>"">
+    					<input type="hidden" name="from" value="home">
+    
+    					<div class="form-group">
+        					<input type="text" name="content" class="form-control" placeholder="Yorum yaz..." required>
+    					</div>
+    					<button type="submit" class="btn btn-primary btn-sm">Gönder</button>
+					</form>
                     
                     <% 
                         List<Map<String, String>> comments = (List<Map<String, String>>) post.get("comments");

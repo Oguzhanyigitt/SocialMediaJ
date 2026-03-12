@@ -22,35 +22,30 @@ public class CommentServlet extends HttpServlet {
         }
 
         int userId = (int) session.getAttribute("userId");
-        String postIdStr = request.getParameter("postId"); // home.jsp'deki formda name="postId" yaptık
+        String postIdStr = request.getParameter("postId");
         String content = request.getParameter("content");
 
-        // Mantık Kontrolü: Yorum boş mu?
+        // Mantık Kontrolü: Veriler boş mu?
         if (content == null || content.trim().isEmpty() || postIdStr == null || postIdStr.trim().isEmpty()) {
             response.sendRedirect("home?error=empty_comment");
             return;
         }
 
-        int postId;
-        try {
-            postId = Integer.parseInt(postIdStr);
-        } catch (NumberFormatException e) {
-            response.sendRedirect("home?error=invalid_post");
-            return;
-        }
-
         try (Connection con = DBUtil.getConnection()) {
+            // Sorguda 3 parametre var: user_id (1), post_id (2), content (3)
             String insertCommentQuery = "INSERT INTO Comments (user_id, post_id, content) VALUES (?, ?, ?)";
+            
             try (PreparedStatement pst = con.prepareStatement(insertCommentQuery)) {
                 pst.setInt(1, userId);
-                pst.setString(2, content.trim()); // Başındaki ve sonundaki boşlukları temizleyerek kaydediyoruz
+                pst.setInt(2, Integer.parseInt(postIdStr));
+                pst.setString(3, content.trim()); // HATA BURADAYDI: 3. parametre eksik veya yanlış set ediliyordu
+                
                 pst.executeUpdate();
             }
             
-            // Başarılı olursa yine ana Servlet'e dönüyoruz
             response.sendRedirect("home");
 
-        } catch (SQLException e) {
+        } catch (SQLException | NumberFormatException e) {
             e.printStackTrace();
             response.sendRedirect("home?error=db_error");
         }

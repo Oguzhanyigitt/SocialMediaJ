@@ -2,7 +2,7 @@ package com.socialmedia.util;
 
 import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
-
+ 
 public class CloudinaryUtil {
     
     private static Cloudinary cloudinary;
