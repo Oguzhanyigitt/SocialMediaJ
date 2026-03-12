@@ -45,12 +45,6 @@
         </form>
     </div>
 </nav>
-<li>
-    
-</li>
-<li>
-    
-</li>
 <div class="container">
     <h2>Profil: <%= request.getAttribute("username") != null ? request.getAttribute("username") : "Kullanıcı Bulunamadı" %></h2>
     <p><%= request.getAttribute("userEmail") != null ? request.getAttribute("userEmail") : "E-posta bulunamadı." %></p>
